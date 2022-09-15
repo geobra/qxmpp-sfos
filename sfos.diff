@@ -1,5 +1,5 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 5f0a3f97..6e60bb42 100644
+index 5f0a3f97..cb986834 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -15,7 +15,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
@@ -11,6 +11,242 @@ index 5f0a3f97..6e60bb42 100644
  
  set(CMAKE_AUTOMOC ON)
  set(CMAKE_AUTORCC ON)
+@@ -40,14 +40,15 @@ if(BUILD_OMEMO)
+     add_definitions(-DBUILD_OMEMO)
+ 
+     # libomemo-c
+-    find_package(PkgConfig REQUIRED)
+-    pkg_check_modules(OmemoC REQUIRED IMPORTED_TARGET libomemo-c)
++    #find_package(PkgConfig REQUIRED)
++    #pkg_check_modules(OmemoC REQUIRED IMPORTED_TARGET libomemo-c)
++	LINK_DIRECTORIES(${CMAKE_SOURCE_DIR}/../libomemo-c/build/src)
+ 
+     # QCA
+-    find_package(Qca-qt${QT_VERSION_MAJOR} REQUIRED)
+-    if(${QT_VERSION_MAJOR} EQUAL 6)
+-        find_package(Qt6Core5Compat REQUIRED)
+-    endif()
++    #find_package(Qca-qt${QT_VERSION_MAJOR} REQUIRED)
++    #if(${QT_VERSION_MAJOR} EQUAL 6)
++    #    find_package(Qt6Core5Compat REQUIRED)
++    #endif()
+ endif()
+ 
+ add_subdirectory(src)
+diff --git a/sfos.diff b/sfos.diff
+index 48976b28..e69de29b 100644
+--- a/sfos.diff
++++ b/sfos.diff
+@@ -1,209 +0,0 @@
+-diff --git a/CMakeLists.txt b/CMakeLists.txt
+-index 5f0a3f97..6e60bb42 100644
+---- a/CMakeLists.txt
+-+++ b/CMakeLists.txt
+-@@ -15,7 +15,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
+- set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/modules")
+- 
+- find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core Network Xml)
+--find_package(Qt${QT_VERSION_MAJOR} 5.9.2 REQUIRED COMPONENTS Core Network Xml)
+-+find_package(Qt${QT_VERSION_MAJOR} 5.6.0 REQUIRED COMPONENTS Core Network Xml)
+- 
+- set(CMAKE_AUTOMOC ON)
+- set(CMAKE_AUTORCC ON)
+-diff --git a/src/base/QXmppFutureUtils_p.h b/src/base/QXmppFutureUtils_p.h
+-index 2551be67..06b0333c 100644
+---- a/src/base/QXmppFutureUtils_p.h
+-+++ b/src/base/QXmppFutureUtils_p.h
+-@@ -24,7 +24,8 @@
+- #include <QFutureWatcher>
+- #include <QObject>
+- 
+--namespace QXmpp::Private {
+-+namespace QXmpp {
+-+namespace Private {
+- 
+- // helper for std::visit
+- template<class... Ts>
+-@@ -191,6 +192,6 @@ auto mapSuccess(std::variant<T, Err> var, Function lambda)
+-                       std::move(var));
+- }
+- 
+--}  // namespace QXmpp::Private
+-+}}  // namespace QXmpp::Private
+- 
+- #endif  // QXMPPFUTUREUTILS_P_H
+-diff --git a/src/base/QXmppMixItems.cpp b/src/base/QXmppMixItems.cpp
+-index e08dd3f2..154ac22d 100644
+---- a/src/base/QXmppMixItems.cpp
+-+++ b/src/base/QXmppMixItems.cpp
+-@@ -140,7 +140,7 @@ bool QXmppMixInfoItem::isItem(const QDomElement &element)
+- {
+-     return QXmppPubSubItem::isItem(element, [](const QDomElement &payload) {
+-         // check FORM_TYPE without parsing a full QXmppDataForm
+--        if (payload.tagName() != u'x' || payload.namespaceURI() != ns_data) {
+-+        if (payload.tagName() != QChar('x') || payload.namespaceURI() != ns_data) {
+-             return false;
+-         }
+-         for (auto fieldEl = payload.firstChildElement();
+-diff --git a/src/base/QXmppPubSubEvent.h b/src/base/QXmppPubSubEvent.h
+-index eca43fb6..7eb9d0b6 100644
+---- a/src/base/QXmppPubSubEvent.h
+-+++ b/src/base/QXmppPubSubEvent.h
+-@@ -138,7 +138,8 @@ void QXmppPubSubEvent<T>::parseItems(const QDomElement &parent)
+- template<typename T>
+- void QXmppPubSubEvent<T>::serializeItems(QXmlStreamWriter *writer) const
+- {
+--    for (const auto &item : qAsConst(m_items)) {
+-+    //for (const auto &item : qAsConst(m_items)) {
+-+    for (const auto &item : const_cast<const QVector<T>&>(m_items)) {
+-         item.toXml(writer);
+-     }
+- }
+-diff --git a/src/base/QXmppPubSubIq.h b/src/base/QXmppPubSubIq.h
+-index ac33766a..7f6a00d8 100644
+---- a/src/base/QXmppPubSubIq.h
+-+++ b/src/base/QXmppPubSubIq.h
+-@@ -87,7 +87,7 @@ protected:
+-     static bool isPubSubIq(const QDomElement &element,
+-                            bool (*isItemValid)(const QDomElement &));
+- 
+--    void parseElementFromChild(const QDomElement &) override;
+-+    void parseElementFromChild(const QDomElement &);
+-     void toXmlElementFromChild(QXmlStreamWriter *writer) const override;
+- 
+-     virtual void parseItems(const QDomElement &queryElement) = 0;
+-diff --git a/src/base/QXmppSasl.cpp b/src/base/QXmppSasl.cpp
+-index d8a86bb0..c4e5e4fe 100644
+---- a/src/base/QXmppSasl.cpp
+-+++ b/src/base/QXmppSasl.cpp
+-@@ -24,7 +24,7 @@ static const QMap<QString, QCryptographicHash::Algorithm> SCRAM_ALGORITHMS = {
+-     { QStringLiteral("SCRAM-SHA-1"), QCryptographicHash::Sha1 },
+-     { QStringLiteral("SCRAM-SHA-256"), QCryptographicHash::Sha256 },
+-     { QStringLiteral("SCRAM-SHA-512"), QCryptographicHash::Sha512 },
+--    { QStringLiteral("SCRAM-SHA3-512"), QCryptographicHash::RealSha3_512 },
+-+//    { QStringLiteral("SCRAM-SHA3-512"), QCryptographicHash::RealSha3_512 },
+- };
+- 
+- // Returns the hash length in bytes (QCH::hashLength() only exists since 5.12).
+-@@ -39,7 +39,7 @@ int hashLength(QCryptographicHash::Algorithm algorithm)
+-     case QCryptographicHash::Sha256:
+-         return 256 / 8;
+-     case QCryptographicHash::Sha512:
+--    case QCryptographicHash::RealSha3_512:
+-+//    case QCryptographicHash::RealSha3_512:
+-         return 512 / 8;
+-     default:
+-         return QCryptographicHash::hash({}, algorithm).size();
+-@@ -288,7 +288,7 @@ QXmppSaslClient::~QXmppSaslClient()
+- QStringList QXmppSaslClient::availableMechanisms()
+- {
+-     return {
+--        QStringLiteral("SCRAM-SHA3-512"),
+-+        //QStringLiteral("SCRAM-SHA3-512"),
+-         QStringLiteral("SCRAM-SHA-512"),
+-         QStringLiteral("SCRAM-SHA-256"),
+-         QStringLiteral("SCRAM-SHA-1"),
+-diff --git a/src/base/QXmppStream.cpp b/src/base/QXmppStream.cpp
+-index 6b5d9589..01ace975 100644
+---- a/src/base/QXmppStream.cpp
+-+++ b/src/base/QXmppStream.cpp
+-@@ -326,7 +326,8 @@ void QXmppStream::setSocket(QSslSocket *socket)
+- #if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0)
+-     connect(socket, &QSslSocket::errorOccurred, this, &QXmppStream::_q_socketError);
+- #else
+--    connect(socket, QOverload<QAbstractSocket::SocketError>::of(&QSslSocket::error), this, &QXmppStream::_q_socketError);
+-+    //connect(socket, QOverload<QAbstractSocket::SocketError>::of(&QSslSocket::error), this, &QXmppStream::_q_socketError);
+-+    connect(socket, static_cast<void (QAbstractSocket::*)(QAbstractSocket::SocketError)>(&QSslSocket::error), this, &QXmppStream::_q_socketError);
+- #endif
+-     connect(socket, &QIODevice::readyRead, this, &QXmppStream::_q_socketReadyRead);
+- }
+-diff --git a/src/base/QXmppUtils.cpp b/src/base/QXmppUtils.cpp
+-index 7ae74ba3..dfca8ed0 100644
+---- a/src/base/QXmppUtils.cpp
+-+++ b/src/base/QXmppUtils.cpp
+-@@ -108,9 +108,12 @@ QDateTime QXmppUtils::datetimeFromString(const QString &str)
+- ///
+- QString QXmppUtils::datetimeToString(const QDateTime &dt)
+- {
+-+    // https://stackoverflow.com/questions/9527960/how-do-i-construct-an-iso-8601-datetime-in-c
+-+#if 0
+-     if (dt.time().msec()) {
+-         return dt.toUTC().toString(Qt::ISODateWithMs);
+-     }
+-+#endif
+-     return dt.toUTC().toString(Qt::ISODate);
+- }
+- 
+-diff --git a/src/client/QXmppOutgoingClient.cpp b/src/client/QXmppOutgoingClient.cpp
+-index 271ec8b9..eb879048 100644
+---- a/src/client/QXmppOutgoingClient.cpp
+-+++ b/src/client/QXmppOutgoingClient.cpp
+-@@ -173,11 +173,13 @@ QXmppOutgoingClient::QXmppOutgoingClient(QObject *parent)
+-     setSocket(socket);
+- 
+-     connect(socket, &QAbstractSocket::disconnected, this, &QXmppOutgoingClient::_q_socketDisconnected);
+--    connect(socket, QOverload<const QList<QSslError> &>::of(&QSslSocket::sslErrors), this, &QXmppOutgoingClient::socketSslErrors);
+-+    //connect(socket, QOverload<const QList<QSslError> &>::of(&QSslSocket::sslErrors), this, &QXmppOutgoingClient::socketSslErrors);
+-+    connect(socket, static_cast<void (QSslSocket::*)(const QList<QSslError>&)>(&QSslSocket::sslErrors), this, &QXmppOutgoingClient::socketSslErrors);
+- #if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0)
+-     connect(socket, &QSslSocket::errorOccurred, this, &QXmppOutgoingClient::socketError);
+- #else
+--    connect(socket, QOverload<QAbstractSocket::SocketError>::of(&QSslSocket::error), this, &QXmppOutgoingClient::socketError);
+-+    //connect(socket, QOverload<QAbstractSocket::SocketError>::of(&QSslSocket::error), this, &QXmppOutgoingClient::socketError);
+-+    connect(socket, static_cast<void (QAbstractSocket::*)(QAbstractSocket::SocketError)>(&QSslSocket::error), this, &QXmppOutgoingClient::socketError);
+- #endif
+- 
+-     // DNS lookups
+-diff --git a/src/client/QXmppTransferManager.cpp b/src/client/QXmppTransferManager.cpp
+-index ac138986..fa77c3b6 100644
+---- a/src/client/QXmppTransferManager.cpp
+-+++ b/src/client/QXmppTransferManager.cpp
+-@@ -1208,7 +1208,8 @@ void QXmppTransferManager::_q_jobStateChanged(QXmppTransferJob::State state)
+-     }
+- 
+-     // the job was accepted by the local party
+--    connect(job, QOverload<QXmppTransferJob::Error>::of(&QXmppTransferJob::error), this, &QXmppTransferManager::_q_jobError);
+-+    //connect(job, QOverload<QXmppTransferJob::Error>::of(&QXmppTransferJob::error), this, &QXmppTransferManager::_q_jobError);
+-+    connect(job, static_cast<void (QXmppTransferJob::*)(QXmppTransferJob::Error)>(&QXmppTransferJob::error), this, &QXmppTransferManager::_q_jobError);
+- 
+-     QXmppDataForm form;
+-     form.setType(QXmppDataForm::Submit);
+-@@ -1341,7 +1342,9 @@ QXmppTransferJob *QXmppTransferManager::sendFile(const QString &jid, QIODevice *
+-     d->jobs.append(job);
+- 
+-     connect(job, &QObject::destroyed, this, &QXmppTransferManager::_q_jobDestroyed);
+--    connect(job, QOverload<QXmppTransferJob::Error>::of(&QXmppTransferJob::error), this, &QXmppTransferManager::_q_jobError);
+-+    //connect(job, QOverload<QXmppTransferJob::Error>::of(&QXmppTransferJob::error), this, &QXmppTransferManager::_q_jobError);
+-+    connect(job, static_cast<void (QXmppTransferJob::*)(QXmppTransferJob::Error)>(&QXmppTransferJob::error), this, &QXmppTransferManager::_q_jobError);
+-+
+-     connect(job, &QXmppTransferJob::finished, this, &QXmppTransferManager::_q_jobFinished);
+- 
+-     QXmppStreamInitiationIq request;
+-diff --git a/src/server/QXmppOutgoingServer.cpp b/src/server/QXmppOutgoingServer.cpp
+-index 49e6f4b2..26708f56 100644
+---- a/src/server/QXmppOutgoingServer.cpp
+-+++ b/src/server/QXmppOutgoingServer.cpp
+-@@ -50,7 +50,11 @@ QXmppOutgoingServer::QXmppOutgoingServer(const QString &domain, QObject *parent)
+- #if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0)
+-     connect(socket, &QSslSocket::errorOccurred, this, &QXmppOutgoingServer::socketError);
+- #else
+--    connect(socket, QOverload<QAbstractSocket::SocketError>::of(&QSslSocket::error), this, &QXmppOutgoingServer::socketError);
+-+    // https://stackoverflow.com/questions/16794695/connecting-overloaded-signals-and-slots-in-qt-5
+-+    // https://riptutorial.com/qt/example/17048/connecting-overloaded-signals-slots
+-+    //connect(socket, QOverload<QAbstractSocket::SocketError>::of(&QSslSocket::error), this, &QXmppOutgoingServer::socketError);
+-+    connect(socket, static_cast<void (QAbstractSocket::*)(QAbstractSocket::SocketError)>(&QSslSocket::error), this, &QXmppOutgoingServer::socketError);
+-+
+- #endif
+- 
+-     // DNS lookups
+-@@ -64,7 +68,8 @@ QXmppOutgoingServer::QXmppOutgoingServer(const QString &domain, QObject *parent)
+-     d->localDomain = domain;
+-     d->ready = false;
+- 
+--    connect(socket, QOverload<const QList<QSslError> &>::of(&QSslSocket::sslErrors), this, &QXmppOutgoingServer::slotSslErrors);
+-+    //connect(socket, QOverload<const QList<QSslError> &>::of(&QSslSocket::sslErrors), this, &QXmppOutgoingServer::slotSslErrors);
+-+    connect(socket, static_cast<void (QSslSocket::*)(const QList<QSslError>&)>(&QSslSocket::sslErrors), this, &QXmppOutgoingServer::slotSslErrors);
+- }
+- 
+- /// Destroys the stream.
 diff --git a/src/base/QXmppFutureUtils_p.h b/src/base/QXmppFutureUtils_p.h
 index 2551be67..06b0333c 100644
 --- a/src/base/QXmppFutureUtils_p.h
@@ -180,6 +416,159 @@ index ac138986..fa77c3b6 100644
      connect(job, &QXmppTransferJob::finished, this, &QXmppTransferManager::_q_jobFinished);
  
      QXmppStreamInitiationIq request;
+diff --git a/src/omemo/CMakeLists.txt b/src/omemo/CMakeLists.txt
+index 3c6e403e..cbe32f9c 100644
+--- a/src/omemo/CMakeLists.txt
++++ b/src/omemo/CMakeLists.txt
+@@ -23,12 +23,19 @@ set(OMEMO_SOURCE_FILES
+ 
+ add_library(QXmppOmemo SHARED ${OMEMO_SOURCE_FILES})
+ 
++LINK_DIRECTORIES(${CMAKE_SOURCE_DIR}/../libomemo-c/build/src)
++LINK_DIRECTORIES(${CMAKE_SOURCE_DIR}/../qca-2.2.1/build/lib)
++INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/../libomemo-c/src)
++INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/../qca-2.2.1/include/QtCrypto)
++INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/../qca-2.2.1/build)
++
+ target_link_libraries(QXmppOmemo
+     PUBLIC
+     qxmpp
+     Qt${QT_VERSION_MAJOR}::Core
+     PRIVATE
+-    PkgConfig::OmemoC
++    #PkgConfig::OmemoC
++	libomemo-c.a
+     qca-qt${QT_VERSION_MAJOR}
+ )
+ target_include_directories(QXmppOmemo
+diff --git a/src/omemo/QXmppOmemoManager.cpp b/src/omemo/QXmppOmemoManager.cpp
+index cb66a515..2dffea15 100644
+--- a/src/omemo/QXmppOmemoManager.cpp
++++ b/src/omemo/QXmppOmemoManager.cpp
+@@ -858,9 +858,8 @@ QFuture<void> Manager::buildMissingSessions(const QList<QString> &jids)
+         // Do not exceed the maximum of manageable devices.
+         if (devicesCount > d->maximumDevicesPerStanza - devicesCount) {
+             warning("Sessions could not be built for all JIDs because their devices are "
+-                    "altogether more than the maximum of manageable devices " %
+-                    QString::number(d->maximumDevicesPerStanza) %
+-                    u" - Use QXmppOmemoManager::setMaximumDevicesPerStanza() to increase the maximum");
++                    "altogether more than the maximum of manageable devices "
++                    " - Use QXmppOmemoManager::setMaximumDevicesPerStanza() to increase the maximum");
+             break;
+         } else {
+             devicesCount += devices.value(jid).size();
+diff --git a/src/omemo/QXmppOmemoManager_p.cpp b/src/omemo/QXmppOmemoManager_p.cpp
+index 2f8ca00d..4f7e3436 100644
+--- a/src/omemo/QXmppOmemoManager_p.cpp
++++ b/src/omemo/QXmppOmemoManager_p.cpp
+@@ -174,8 +174,10 @@ static QString extractJid(signal_protocol_address address)
+ 
+ static QString errorToString(const QXmppStanza::Error &err)
+ {
++	/*
+     return u"Error('" % err.text() % u"', type=" % QString::number(err.type()) % u", condition=" %
+         QString::number(err.condition()) % u")";
++	*/
+ }
+ 
+ static void replaceChildElements(QDomElement &oldElement, const QDomElement &newElement)
+@@ -707,11 +709,11 @@ void ManagerPrivate::schedulePeriodicTasks()
+ //
+ void ManagerPrivate::renewSignedPreKeyPairs()
+ {
+-    const auto currentDate = QDateTime::currentDateTimeUtc().toSecsSinceEpoch() * 1s;
++    const auto currentDate = QDateTime::currentDateTimeUtc().toMSecsSinceEpoch() * 1s / 1000;
+     auto isSignedPreKeyPairRemoved = false;
+ 
+     for (auto itr = signedPreKeyPairs.begin(); itr != signedPreKeyPairs.end();) {
+-        const auto creationDate = itr.value().creationDate.toSecsSinceEpoch() * 1s;
++        const auto creationDate = itr.value().creationDate.toMSecsSinceEpoch() * 1s / 1000;
+ 
+         // Remove signed pre key pairs older than
+         // SIGNED_PRE_KEY_RENEWAL_INTERVAL.
+@@ -916,7 +918,7 @@ bool ManagerPrivate::updatePreKeyPairs(uint32_t count)
+ //
+ void ManagerPrivate::removeDevicesRemovedFromServer()
+ {
+-    const auto currentDate = QDateTime::currentDateTimeUtc().toSecsSinceEpoch() * 1s;
++    const auto currentDate = QDateTime::currentDateTimeUtc().toMSecsSinceEpoch() * 1s / 1000;
+ 
+     for (auto itr = devices.begin(); itr != devices.end(); ++itr) {
+         const auto &jid = itr.key();
+@@ -930,7 +932,7 @@ void ManagerPrivate::removeDevicesRemovedFromServer()
+             // DEVICE_REMOVAL_INTERVAL.
+             const auto &removalDate = device.removalFromDeviceListDate;
+             if (!removalDate.isNull() &&
+-                currentDate - removalDate.toSecsSinceEpoch() * 1s > DEVICE_REMOVAL_INTERVAL) {
++                currentDate - removalDate.toMSecsSinceEpoch() * 1s / 1000 > DEVICE_REMOVAL_INTERVAL) {
+                 devicesItr = userDevices.erase(devicesItr);
+                 omemoStorage->removeDevice(jid, deviceId);
+                 trustManager->removeKeys(ns_omemo_2, QList { device.keyId });
+@@ -1085,10 +1087,7 @@ QFuture<std::optional<QXmppOmemoElement>> ManagerPrivate::encryptStanza(const T
+ 
+         // Do not exceed the maximum of manageable devices.
+         if (devicesCount > maximumDevicesPerStanza) {
+-            warning(u"OMEMO payload could not be encrypted for all recipients because their "
+-                    "devices are altogether more than the maximum of manageable devices " %
+-                    QString::number(maximumDevicesPerStanza) %
+-                    u" - Use QXmppOmemoManager::setMaximumDevicesPerStanza() to increase the maximum");
++            warning(u"OMEMO payload could not be encrypted for all recipients because their devices are altogether more than the maximum of manageable devices. Use QXmppOmemoManager::setMaximumDevicesPerStanza() to increase the maximum");
+             devicesCount = maximumDevicesPerStanza;
+         }
+ 
+@@ -2658,9 +2657,8 @@ void ManagerPrivate::updateDevices(const QString &deviceOwnerJid, const QXmppOme
+     if (deviceList.size() > maximumDevicesPerJid) {
+         warning(u"Received OMEMO device list of JID '" % deviceOwnerJid %
+                 "' could not be stored locally completely because the devices are more than the "
+-                "maximum of manageable devices " %
+-                QString::number(maximumDevicesPerJid) %
+-                u" - Use 'QXmppOmemoManager::setMaximumDevicesPerJid()' to increase the maximum");
++                "maximum of manageable devices "
++                " - Use 'QXmppOmemoManager::setMaximumDevicesPerJid()' to increase the maximum");
+         deviceList = deviceList.mid(0, maximumDevicesPerJid);
+     }
+ 
+@@ -3008,7 +3006,7 @@ void QXmppOmemoManagerPrivate::runPubSubQueryWithContinuation(QFuture<T> future,
+ {
+     await(future, q, [this, errorMessage, continuation = std::move(continuation)](auto result) mutable {
+         if (auto error = std::get_if<Error>(&result)) {
+-            warning(errorMessage % u": " % errorToString(*error));
++            //warning(errorMessage % u": " % errorToString(*error));
+             continuation(false);
+         } else {
+             continuation(true);
+diff --git a/src/omemo/QXmppOmemoManager_p.h b/src/omemo/QXmppOmemoManager_p.h
+index 7f697ed2..425ec17e 100644
+--- a/src/omemo/QXmppOmemoManager_p.h
++++ b/src/omemo/QXmppOmemoManager_p.h
+@@ -16,6 +16,8 @@
+ #include <QTimer>
+ #include <QtCrypto>
+ 
++#include <chrono>
++
+ class QXmppTrustManager;
+ class QXmppOmemoManager;
+ class QXmppPubSubManager;
+@@ -28,7 +30,8 @@ class QXmppOmemoDeviceListItem;
+ class QXmppOmemoDeviceBundleItem;
+ 
+ using namespace QXmpp;
+-using namespace std::chrono_literals;
++//using namespace std::chrono_literals;
++using namespace std::literals;
+ 
+ namespace QXmpp::Omemo::Private {
+ 
+@@ -154,7 +157,7 @@ public:
+ 
+     OmemoContextPtr globalContext;
+     StoreContextPtr storeContext;
+-    QRecursiveMutex mutex;
++    QBasicMutex mutex;
+     signal_crypto_provider cryptoProvider;
+ 
+     signal_protocol_identity_key_store identityKeyStore;
 diff --git a/src/server/QXmppOutgoingServer.cpp b/src/server/QXmppOutgoingServer.cpp
 index 49e6f4b2..26708f56 100644
 --- a/src/server/QXmppOutgoingServer.cpp
