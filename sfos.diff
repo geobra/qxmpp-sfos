@@ -244,7 +244,7 @@ index cb66a515..2dffea15 100644
          } else {
              devicesCount += devices.value(jid).size();
 diff --git a/src/omemo/QXmppOmemoManager_p.cpp b/src/omemo/QXmppOmemoManager_p.cpp
-index 2f8ca00d..4f7e3436 100644
+index 2f8ca00d..672e36ad 100644
 --- a/src/omemo/QXmppOmemoManager_p.cpp
 +++ b/src/omemo/QXmppOmemoManager_p.cpp
 @@ -174,8 +174,10 @@ static QString extractJid(signal_protocol_address address)
@@ -258,6 +258,17 @@ index 2f8ca00d..4f7e3436 100644
  }
  
  static void replaceChildElements(QDomElement &oldElement, const QDomElement &newElement)
+@@ -698,8 +700,8 @@ void ManagerPrivate::schedulePeriodicTasks()
+         removeDevicesRemovedFromServer();
+     });
+ 
+-    signedPreKeyPairsRenewalTimer.start(SIGNED_PRE_KEY_RENEWAL_CHECK_INTERVAL);
+-    deviceRemovalTimer.start(DEVICE_REMOVAL_CHECK_INTERVAL);
++    signedPreKeyPairsRenewalTimer.start(SIGNED_PRE_KEY_RENEWAL_CHECK_INTERVAL.count());
++    deviceRemovalTimer.start(DEVICE_REMOVAL_CHECK_INTERVAL.count());
+ }
+ 
+ //
 @@ -707,11 +709,11 @@ void ManagerPrivate::schedulePeriodicTasks()
  //
  void ManagerPrivate::renewSignedPreKeyPairs()
@@ -272,6 +283,15 @@ index 2f8ca00d..4f7e3436 100644
  
          // Remove signed pre key pairs older than
          // SIGNED_PRE_KEY_RENEWAL_INTERVAL.
+@@ -903,7 +905,7 @@ bool ManagerPrivate::updatePreKeyPairs(uint32_t count)
+         deviceBundle.addPublicPreKey(preKeyId, serializedPublicPreKey);
+     }
+ 
+-    this->preKeyPairs.insert(serializedPreKeyPairs);
++    preKeyPairs.unite(serializedPreKeyPairs);
+     omemoStorage->addPreKeyPairs(serializedPreKeyPairs);
+     ownDevice.latestPreKeyId = latestPreKeyId - 1 + count;
+ 
 @@ -916,7 +918,7 @@ bool ManagerPrivate::updatePreKeyPairs(uint32_t count)
  //
  void ManagerPrivate::removeDevicesRemovedFromServer()
@@ -290,36 +310,60 @@ index 2f8ca00d..4f7e3436 100644
                  devicesItr = userDevices.erase(devicesItr);
                  omemoStorage->removeDevice(jid, deviceId);
                  trustManager->removeKeys(ns_omemo_2, QList { device.keyId });
-@@ -1085,10 +1087,7 @@ QFuture<std::optional<QXmppOmemoElement>> ManagerPrivate::encryptStanza(const T
+@@ -1085,10 +1087,10 @@ QFuture<std::optional<QXmppOmemoElement>> ManagerPrivate::encryptStanza(const T
  
          // Do not exceed the maximum of manageable devices.
          if (devicesCount > maximumDevicesPerStanza) {
 -            warning(u"OMEMO payload could not be encrypted for all recipients because their "
 -                    "devices are altogether more than the maximum of manageable devices " %
--                    QString::number(maximumDevicesPerStanza) %
++            warning(QString("OMEMO payload could not be encrypted for all recipients because their ") %
++                    QString("devices are altogether more than the maximum of manageable devices ") %
+                     QString::number(maximumDevicesPerStanza) %
 -                    u" - Use QXmppOmemoManager::setMaximumDevicesPerStanza() to increase the maximum");
-+            warning(u"OMEMO payload could not be encrypted for all recipients because their devices are altogether more than the maximum of manageable devices. Use QXmppOmemoManager::setMaximumDevicesPerStanza() to increase the maximum");
++                    QString(" - Use QXmppOmemoManager::setMaximumDevicesPerStanza() to increase the maximum"));
              devicesCount = maximumDevicesPerStanza;
          }
  
-@@ -2658,9 +2657,8 @@ void ManagerPrivate::updateDevices(const QString &deviceOwnerJid, const QXmppOme
+@@ -2597,12 +2599,12 @@ void ManagerPrivate::updateOwnDevicesLocally(bool isDeviceListNodeExistent, Func
+                 if (auto devicesCount = deviceList.size()) {
+                     // Do not exceed the maximum of manageable devices.
+                     if (devicesCount > maximumDevicesPerJid) {
+-                        warning(u"Received own OMEMO device list could not be stored locally "
+-                                "completely because the devices are more than the maximum of "
+-                                "manageable devices " %
++                        warning(QString("Received own OMEMO device list could not be stored locally ") %
++                                QString("completely because the devices are more than the maximum of ") %
++                                QString("manageable devices ") %
+                                 QString::number(maximumDevicesPerJid) %
+-                                u" - Use 'QXmppOmemoManager::setMaximumDevicesPerJid()' to "
+-                                "increase the maximum");
++                                QString(" - Use 'QXmppOmemoManager::setMaximumDevicesPerJid()' to ") %
++                                QString("increase the maximum"));
+                         deviceList = deviceList.mid(0, maximumDevicesPerJid);
+                         devicesCount = maximumDevicesPerJid;
+                     }
+@@ -2656,11 +2658,10 @@ void ManagerPrivate::updateDevices(const QString &deviceOwnerJid, const QXmppOme
+ 
+     // Do not exceed the maximum of manageable devices.
      if (deviceList.size() > maximumDevicesPerJid) {
-         warning(u"Received OMEMO device list of JID '" % deviceOwnerJid %
-                 "' could not be stored locally completely because the devices are more than the "
+-        warning(u"Received OMEMO device list of JID '" % deviceOwnerJid %
+-                "' could not be stored locally completely because the devices are more than the "
 -                "maximum of manageable devices " %
 -                QString::number(maximumDevicesPerJid) %
 -                u" - Use 'QXmppOmemoManager::setMaximumDevicesPerJid()' to increase the maximum");
-+                "maximum of manageable devices "
-+                " - Use 'QXmppOmemoManager::setMaximumDevicesPerJid()' to increase the maximum");
++        warning(QString("Received OMEMO device list of JID '") % deviceOwnerJid %
++                QString("' could not be stored locally completely because the devices are more than the ") %
++                QString("maximum of manageable devices ") %
++                QString(" - Use 'QXmppOmemoManager::setMaximumDevicesPerJid()' to increase the maximum"));
          deviceList = deviceList.mid(0, maximumDevicesPerJid);
      }
  
-@@ -3008,7 +3006,7 @@ void QXmppOmemoManagerPrivate::runPubSubQueryWithContinuation(QFuture<T> future,
+@@ -3008,7 +3009,7 @@ void QXmppOmemoManagerPrivate::runPubSubQueryWithContinuation(QFuture<T> future,
  {
      await(future, q, [this, errorMessage, continuation = std::move(continuation)](auto result) mutable {
          if (auto error = std::get_if<Error>(&result)) {
 -            warning(errorMessage % u": " % errorToString(*error));
-+            //warning(errorMessage % u": " % errorToString(*error));
++            warning(errorMessage % QString(": ") % errorToString(*error));
              continuation(false);
          } else {
              continuation(true);
@@ -355,6 +399,19 @@ index 7f697ed2..425ec17e 100644
      signal_crypto_provider cryptoProvider;
  
      signal_protocol_identity_key_store identityKeyStore;
+diff --git a/src/omemo/QXmppOmemoMemoryStorage.cpp b/src/omemo/QXmppOmemoMemoryStorage.cpp
+index 6ff81002..1bfc4fb0 100644
+--- a/src/omemo/QXmppOmemoMemoryStorage.cpp
++++ b/src/omemo/QXmppOmemoMemoryStorage.cpp
+@@ -75,7 +75,7 @@ QFuture<void> QXmppOmemoMemoryStorage::removeSignedPreKeyPair(const uint32_t key
+ 
+ QFuture<void> QXmppOmemoMemoryStorage::addPreKeyPairs(const QHash<uint32_t, QByteArray> &keyPairs)
+ {
+-    d->preKeyPairs.insert(keyPairs);
++    d->preKeyPairs.unite(keyPairs);
+     return makeReadyFuture();
+ }
+ 
 diff --git a/src/server/QXmppOutgoingServer.cpp b/src/server/QXmppOutgoingServer.cpp
 index 49e6f4b2..26708f56 100644
 --- a/src/server/QXmppOutgoingServer.cpp
