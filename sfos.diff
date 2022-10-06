@@ -1,17 +1,19 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 5f0a3f97..cb986834 100644
+index 5f0a3f97..5022d5a2 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -15,7 +15,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
+@@ -15,7 +15,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
  set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/modules")
  
  find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core Network Xml)
 -find_package(Qt${QT_VERSION_MAJOR} 5.9.2 REQUIRED COMPONENTS Core Network Xml)
 +find_package(Qt${QT_VERSION_MAJOR} 5.6.0 REQUIRED COMPONENTS Core Network Xml)
++
++LINK_DIRECTORIES(${CMAKE_SOURCE_DIR}/../qca-2.2.1/build_arm/lib)
  
  set(CMAKE_AUTOMOC ON)
  set(CMAKE_AUTORCC ON)
-@@ -40,14 +40,15 @@ if(BUILD_OMEMO)
+@@ -40,14 +42,14 @@ if(BUILD_OMEMO)
      add_definitions(-DBUILD_OMEMO)
  
      # libomemo-c
@@ -19,7 +21,6 @@ index 5f0a3f97..cb986834 100644
 -    pkg_check_modules(OmemoC REQUIRED IMPORTED_TARGET libomemo-c)
 +    #find_package(PkgConfig REQUIRED)
 +    #pkg_check_modules(OmemoC REQUIRED IMPORTED_TARGET libomemo-c)
-+	LINK_DIRECTORIES(${CMAKE_SOURCE_DIR}/../libomemo-c/build/src)
  
      # QCA
 -    find_package(Qca-qt${QT_VERSION_MAJOR} REQUIRED)
@@ -203,18 +204,18 @@ index ac138986..fa77c3b6 100644
  
      QXmppStreamInitiationIq request;
 diff --git a/src/omemo/CMakeLists.txt b/src/omemo/CMakeLists.txt
-index 3c6e403e..cbe32f9c 100644
+index 3c6e403e..4cb6e904 100644
 --- a/src/omemo/CMakeLists.txt
 +++ b/src/omemo/CMakeLists.txt
 @@ -23,12 +23,19 @@ set(OMEMO_SOURCE_FILES
  
  add_library(QXmppOmemo SHARED ${OMEMO_SOURCE_FILES})
  
-+LINK_DIRECTORIES(${CMAKE_SOURCE_DIR}/../libomemo-c/build/src)
-+LINK_DIRECTORIES(${CMAKE_SOURCE_DIR}/../qca-2.2.1/build/lib)
++#LINK_DIRECTORIES(${CMAKE_SOURCE_DIR}/../libomemo-c/build_arm/src)
++LINK_DIRECTORIES(${CMAKE_SOURCE_DIR}/../qca-2.2.1/build_arm/lib)
 +INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/../libomemo-c/src)
 +INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/../qca-2.2.1/include/QtCrypto)
-+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/../qca-2.2.1/build)
++INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/../qca-2.2.1/build_arm)
 +
  target_link_libraries(QXmppOmemo
      PUBLIC
@@ -223,7 +224,7 @@ index 3c6e403e..cbe32f9c 100644
      PRIVATE
 -    PkgConfig::OmemoC
 +    #PkgConfig::OmemoC
-+	libomemo-c.a
++	${CMAKE_SOURCE_DIR}/../libomemo-c/build_arm/src/libomemo-c.a
      qca-qt${QT_VERSION_MAJOR}
  )
  target_include_directories(QXmppOmemo
