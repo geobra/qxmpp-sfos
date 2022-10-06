@@ -1,8 +1,8 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 5f0a3f97..5022d5a2 100644
+index 5f0a3f97..79dde736 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -15,7 +15,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
+@@ -15,7 +15,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
  set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/modules")
  
  find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core Network Xml)
@@ -10,10 +10,11 @@ index 5f0a3f97..5022d5a2 100644
 +find_package(Qt${QT_VERSION_MAJOR} 5.6.0 REQUIRED COMPONENTS Core Network Xml)
 +
 +LINK_DIRECTORIES(${CMAKE_SOURCE_DIR}/../qca-2.2.1/build_arm/lib)
++set(CMAKE_POSITION_INDEPENDENT_CODE ON)
  
  set(CMAKE_AUTOMOC ON)
  set(CMAKE_AUTORCC ON)
-@@ -40,14 +42,14 @@ if(BUILD_OMEMO)
+@@ -40,14 +43,14 @@ if(BUILD_OMEMO)
      add_definitions(-DBUILD_OMEMO)
  
      # libomemo-c
@@ -34,6 +35,19 @@ index 5f0a3f97..5022d5a2 100644
  endif()
  
  add_subdirectory(src)
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index 4164bd71..282bd262 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -2,7 +2,7 @@
+ #
+ # SPDX-License-Identifier: CC0-1.0
+ 
+-option(BUILD_SHARED "Build SHARED library" ON)
++option(BUILD_SHARED "Build SHARED library" OFF)
+ 
+ add_definitions(-DQXMPP_BUILD)
+ 
 diff --git a/src/base/QXmppFutureUtils_p.h b/src/base/QXmppFutureUtils_p.h
 index 2551be67..06b0333c 100644
 --- a/src/base/QXmppFutureUtils_p.h
