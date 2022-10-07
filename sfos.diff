@@ -1,5 +1,5 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 5f0a3f97..79dde736 100644
+index 5f0a3f97..6ef79509 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -15,7 +15,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
@@ -9,7 +9,7 @@ index 5f0a3f97..79dde736 100644
 -find_package(Qt${QT_VERSION_MAJOR} 5.9.2 REQUIRED COMPONENTS Core Network Xml)
 +find_package(Qt${QT_VERSION_MAJOR} 5.6.0 REQUIRED COMPONENTS Core Network Xml)
 +
-+LINK_DIRECTORIES(${CMAKE_SOURCE_DIR}/../qca-2.2.1/build_arm/lib)
++LINK_DIRECTORIES(${CMAKE_SOURCE_DIR}/../qca-2.2.1/build/lib)
 +set(CMAKE_POSITION_INDEPENDENT_CODE ON)
  
  set(CMAKE_AUTOMOC ON)
@@ -218,18 +218,17 @@ index ac138986..fa77c3b6 100644
  
      QXmppStreamInitiationIq request;
 diff --git a/src/omemo/CMakeLists.txt b/src/omemo/CMakeLists.txt
-index 3c6e403e..4cb6e904 100644
+index 3c6e403e..8d73fe44 100644
 --- a/src/omemo/CMakeLists.txt
 +++ b/src/omemo/CMakeLists.txt
-@@ -23,12 +23,19 @@ set(OMEMO_SOURCE_FILES
+@@ -23,12 +23,18 @@ set(OMEMO_SOURCE_FILES
  
  add_library(QXmppOmemo SHARED ${OMEMO_SOURCE_FILES})
  
-+#LINK_DIRECTORIES(${CMAKE_SOURCE_DIR}/../libomemo-c/build_arm/src)
-+LINK_DIRECTORIES(${CMAKE_SOURCE_DIR}/../qca-2.2.1/build_arm/lib)
++LINK_DIRECTORIES(${CMAKE_SOURCE_DIR}/../qca-2.2.1/build/lib)
 +INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/../libomemo-c/src)
 +INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/../qca-2.2.1/include/QtCrypto)
-+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/../qca-2.2.1/build_arm)
++INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/../qca-2.2.1/build)
 +
  target_link_libraries(QXmppOmemo
      PUBLIC
@@ -238,7 +237,7 @@ index 3c6e403e..4cb6e904 100644
      PRIVATE
 -    PkgConfig::OmemoC
 +    #PkgConfig::OmemoC
-+	${CMAKE_SOURCE_DIR}/../libomemo-c/build_arm/src/libomemo-c.a
++	${CMAKE_SOURCE_DIR}/../libomemo-c/build/src/libomemo-c.a
      qca-qt${QT_VERSION_MAJOR}
  )
  target_include_directories(QXmppOmemo
@@ -259,7 +258,7 @@ index cb66a515..2dffea15 100644
          } else {
              devicesCount += devices.value(jid).size();
 diff --git a/src/omemo/QXmppOmemoManager_p.cpp b/src/omemo/QXmppOmemoManager_p.cpp
-index 2f8ca00d..672e36ad 100644
+index 2f8ca00d..146a9a78 100644
 --- a/src/omemo/QXmppOmemoManager_p.cpp
 +++ b/src/omemo/QXmppOmemoManager_p.cpp
 @@ -174,8 +174,10 @@ static QString extractJid(signal_protocol_address address)
@@ -298,16 +297,20 @@ index 2f8ca00d..672e36ad 100644
  
          // Remove signed pre key pairs older than
          // SIGNED_PRE_KEY_RENEWAL_INTERVAL.
-@@ -903,7 +905,7 @@ bool ManagerPrivate::updatePreKeyPairs(uint32_t count)
+@@ -903,7 +905,11 @@ bool ManagerPrivate::updatePreKeyPairs(uint32_t count)
          deviceBundle.addPublicPreKey(preKeyId, serializedPublicPreKey);
      }
  
 -    this->preKeyPairs.insert(serializedPreKeyPairs);
++#if QT_VERSION < QT_VERSION_CHECK(5, 6, 0)
 +    preKeyPairs.unite(serializedPreKeyPairs);
++#else
++    preKeyPairs.insert(serializedPreKeyPairs);
++#endif
      omemoStorage->addPreKeyPairs(serializedPreKeyPairs);
      ownDevice.latestPreKeyId = latestPreKeyId - 1 + count;
  
-@@ -916,7 +918,7 @@ bool ManagerPrivate::updatePreKeyPairs(uint32_t count)
+@@ -916,7 +922,7 @@ bool ManagerPrivate::updatePreKeyPairs(uint32_t count)
  //
  void ManagerPrivate::removeDevicesRemovedFromServer()
  {
@@ -316,7 +319,7 @@ index 2f8ca00d..672e36ad 100644
  
      for (auto itr = devices.begin(); itr != devices.end(); ++itr) {
          const auto &jid = itr.key();
-@@ -930,7 +932,7 @@ void ManagerPrivate::removeDevicesRemovedFromServer()
+@@ -930,7 +936,7 @@ void ManagerPrivate::removeDevicesRemovedFromServer()
              // DEVICE_REMOVAL_INTERVAL.
              const auto &removalDate = device.removalFromDeviceListDate;
              if (!removalDate.isNull() &&
@@ -325,7 +328,7 @@ index 2f8ca00d..672e36ad 100644
                  devicesItr = userDevices.erase(devicesItr);
                  omemoStorage->removeDevice(jid, deviceId);
                  trustManager->removeKeys(ns_omemo_2, QList { device.keyId });
-@@ -1085,10 +1087,10 @@ QFuture<std::optional<QXmppOmemoElement>> ManagerPrivate::encryptStanza(const T
+@@ -1085,10 +1091,10 @@ QFuture<std::optional<QXmppOmemoElement>> ManagerPrivate::encryptStanza(const T
  
          // Do not exceed the maximum of manageable devices.
          if (devicesCount > maximumDevicesPerStanza) {
@@ -339,7 +342,7 @@ index 2f8ca00d..672e36ad 100644
              devicesCount = maximumDevicesPerStanza;
          }
  
-@@ -2597,12 +2599,12 @@ void ManagerPrivate::updateOwnDevicesLocally(bool isDeviceListNodeExistent, Func
+@@ -2597,12 +2603,12 @@ void ManagerPrivate::updateOwnDevicesLocally(bool isDeviceListNodeExistent, Func
                  if (auto devicesCount = deviceList.size()) {
                      // Do not exceed the maximum of manageable devices.
                      if (devicesCount > maximumDevicesPerJid) {
@@ -357,7 +360,7 @@ index 2f8ca00d..672e36ad 100644
                          deviceList = deviceList.mid(0, maximumDevicesPerJid);
                          devicesCount = maximumDevicesPerJid;
                      }
-@@ -2656,11 +2658,10 @@ void ManagerPrivate::updateDevices(const QString &deviceOwnerJid, const QXmppOme
+@@ -2656,11 +2662,10 @@ void ManagerPrivate::updateDevices(const QString &deviceOwnerJid, const QXmppOme
  
      // Do not exceed the maximum of manageable devices.
      if (deviceList.size() > maximumDevicesPerJid) {
@@ -373,7 +376,7 @@ index 2f8ca00d..672e36ad 100644
          deviceList = deviceList.mid(0, maximumDevicesPerJid);
      }
  
-@@ -3008,7 +3009,7 @@ void QXmppOmemoManagerPrivate::runPubSubQueryWithContinuation(QFuture<T> future,
+@@ -3008,7 +3013,7 @@ void QXmppOmemoManagerPrivate::runPubSubQueryWithContinuation(QFuture<T> future,
  {
      await(future, q, [this, errorMessage, continuation = std::move(continuation)](auto result) mutable {
          if (auto error = std::get_if<Error>(&result)) {
@@ -415,15 +418,18 @@ index 7f697ed2..425ec17e 100644
  
      signal_protocol_identity_key_store identityKeyStore;
 diff --git a/src/omemo/QXmppOmemoMemoryStorage.cpp b/src/omemo/QXmppOmemoMemoryStorage.cpp
-index 6ff81002..1bfc4fb0 100644
+index 6ff81002..009186d2 100644
 --- a/src/omemo/QXmppOmemoMemoryStorage.cpp
 +++ b/src/omemo/QXmppOmemoMemoryStorage.cpp
-@@ -75,7 +75,7 @@ QFuture<void> QXmppOmemoMemoryStorage::removeSignedPreKeyPair(const uint32_t key
+@@ -75,7 +75,11 @@ QFuture<void> QXmppOmemoMemoryStorage::removeSignedPreKeyPair(const uint32_t key
  
  QFuture<void> QXmppOmemoMemoryStorage::addPreKeyPairs(const QHash<uint32_t, QByteArray> &keyPairs)
  {
--    d->preKeyPairs.insert(keyPairs);
++#if QT_VERSION < QT_VERSION_CHECK(5, 6, 0)
 +    d->preKeyPairs.unite(keyPairs);
++#else
+     d->preKeyPairs.insert(keyPairs);
++#endif
      return makeReadyFuture();
  }
  
